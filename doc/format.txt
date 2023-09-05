@@ -1,0 +1,261 @@
+Basic types
+
+- spare                                     not displayed byte
+- char, schar, uchar
+- bool1, bool8, bool16, bool32              take care of byte order
+- int2 to  int32,  int40,  int48, int64     take care of byte order
+- uint1 to uint32, uint40, uint48           take care of byte order
+- float32, float64                          take care of byte order
+- string, string(<nb_bytes>)                manage zero as end of string
+- string_nl, string_nl(<nb_bytes>)          idem string + manage "\n" or "\r\n" as end of string
+- raw(<nb_bytes>)                           dump hexa (nb_bytes could be * in some cases); must start on an entire byte position
+- padding_bits                              permits to move to the next entire byte position
+
+No Statement value
+
+<int_or_float_type_name>{ns=<No Statement value>}       <field_name> ;
+If the read value is equal to the specified value :
+- No_Statement will be displayed.
+- Transform, Display and Constrains specifications are ignored
+NB: must be specified before the Transform, Display and Constrains specifications.
+
+Transform specifications
+
+<int_or_float_type_name>{q=<quantum>:o=<offset>}                          <field_name> ;
+<int_or_float_type_name>{q=<quantum>}                                     <field_name> ;
+<int_or_float_type_name>{o=<offset>}                                      <field_name> ;
+<type_name>{tei=integer expression (use "this")}                          <field_name> ;
+<type_name>{tef=float   expression (use "this")}                          <field_name> ;
+<type_name>{tei=a_previous_field > 0 ? this/another_field : 2*this-47}    <field_name> ; # ternary operator
+<type_name>{tef=a_function_which_returns_a_float(this)}                   <field_name> ;
+
+Display specifications
+
+<int_type_name>{d=hex}                                  <field_name> ;
+<int_type_name>{d=oct}                                  <field_name> ;
+<int_type_name>{d=bin}                                  <field_name> ;
+<any_type_name>{d=printf format %22.32s}                <field_name> ;
+<any_type_name>{de=string expression (use "this")}      <field_name> ;
+
+Local byte order specification
+
+The global byte order is specified with byte_order command.
+This byte order specification apply only to the specified field.
+
+<type_name>{byte_order=big_endian}      <field_name> ;
+<type_name>{byte_order=little_endian}   <field_name> ;
+
+Arrays
+
+<type_name>[12]                                <array_field_name> ;
+<type_name>[<field_name>]                      <array_field_name> ;
+<type_name>[<field_name> - 12]                 <array_field_name> ;
+<type_name>[<field_name> < 36 ? 0 : 16]        <array_field_name> ;
+
+Only at the end of the message AND if Generic Dissector knows the size of the message (look at this) :
+<type_name>[*]                                 <array_field_name> ;          * means any number of element
+<type_name>[+]                                 <array_field_name> ;          + means any number of element, at least 1
+If the array is not at the end of the message, look at loop_size.
+
+Enum
+
+Take care of byte order!
+
+enum<nb_bits 1 to 32>  <enum_type_name>
+{
+    <symbolic_value_name>  <integer_value or - >                   # - means last value + 1 (zero if first value)
+    ...
+}
+
+# To define an identic enum with a different size.
+enum<nb_bits 1 to 32>  <enum_type_name>  as      <already_existent_enum_type_name> ;
+
+# To define a new enum starting from an existent one.
+enum<nb_bits 1 to 32>  <enum_type_name>  expand  <already_existent_enum_type_name>
+{
+    <other_symbolic_value_name>  <integer_value>
+    ...
+}
+
+# Could use <enum_type_name>::<symbolic_value_name> in any expression/condition.
+
+Bit field
+
+bitfield must be understood like a C bitfield (even there is no standard about its implementation).
+Take care of byte order.
+Fields could be unsigned integers, bool1 or enum (without signed values).
+
+bitfield<nb_bits 8 16 24 or 32>  <bitfield_type_name>
+{
+  uint3{d=bin}                             field1 ;             # lower level bits
+  hide uint2                               field2_unused ;
+  uint15{q=2.34:o=-117.35}{min=-105.17}    field3 ;
+  <enum_type>                              field4 ;
+  bool1                                    field5 ;
+  ...                                                           # higher level bits
+}
+
+Could also use 'var' and 'set' inside Bit field.
+
+Struct
+
+struct  <struct_type_name>
+{
+    <type_name>     <field_name> ;
+    <command_name>  <command_parameter> ;
+    if              ((<field_name> + 20 < 572) && (...) || (...))
+    {
+        <anything that could be specified in a struct>
+    }
+    else
+    {
+        <anything that could be specified in a struct>
+    }
+    while           ((<field_name> % 20 < 2**3) && (...) || (...))
+    {
+        <anything that could be specified in a struct>
+        continue ;
+        break ;
+    }
+    do
+    {
+        <anything that could be specified in a struct>
+        continue ;
+        break ;
+    } while           ((to_string(<field_name>) + "20" != print("%d", 572)) && (...) || (...)) ;
+
+    # repeat until the given size have been effectively read
+    # Use loop_size_bits if bit size is needed
+    loop_size_bytes    <field_name>+20
+    {
+        <anything that could be specified in a struct>
+        continue ;
+        break ;
+    }
+
+    # Inline struct and bitfield
+    struct
+    {
+        <anything that could be specified in a struct>
+    }   <field_name> ;
+
+    bitfield<nb_bits 8 16 24 or 32>
+    {
+        <anything that could be specified in a bitfield>
+    }   <field_name> ;
+    ...
+}
+
+Optionaly, you can put a print specification :
+struct  <struct_type_name>  print (<printf format and arguments>)
+{
+    ...
+}
+The printf arguments could be fields specified inside the struct.
+
+Switch
+
+switch  <switch_type_name>  <optional and deprecated switched_type_name>
+{
+    case <integer, enum or string value 1> :
+    <anything that could be specified in a struct>
+    ...
+    case <integer, enum or string value n> :
+    <anything that could be specified in a struct>
+    default :
+    <anything that could be specified in a struct>
+}
+
+Switch with expression
+
+switch_expr  <switch_type_name>
+{
+    case (<any expression>) :    <anything that could be specified in a struct>
+    ...
+    case (<any expression>) :    <anything that could be specified in a struct>
+    default                 :    <anything that could be specified in a struct>
+}
+
+Forward declarations
+
+- enum<nb_bits 1 to 32>  <enum_type_name>;
+- bitfield<nb_bits 8 16 24 or 32>  <bitfield_type_name>;
+- struct  <struct_type_name>;
+- switch  <switch_type_name>;
+
+Commands
+
+- include     <file_name> ;
+  include the specified description file
+  Not available inside a struct, switch ...
+- byte_order  (little_endian | big_endian | as_host) ;
+  specify the data byte order for int (also enum and bitfield) and float
+  - big endian (also known as network, motorola) : the bytes are not inverted
+  - little endian (also known as intel) : the bytes are inverted
+
+Var command
+
+var  <type>  <variable name> = <value or expression> ;
+ permits to declare, initialize and display a variable.
+
+Set command
+
+set  <variable name> = <expression> ;
+
+Const command
+
+const  <type>  <variable name> = <value or expression> ;
+ permits to declare and initialize a constant.
+ <type> could be any int, float, string and enum
+
+ Built-in constants :
+
+  system::os      = "win" or "linux"
+  system::bits    = 32 or 64
+  system::osbits  = "win32" ... "linux64"
+
+  shark::progfile_dir     = "C:\wireshark\dev\svn_sources_release-1.8--win32\wireshark-gtk2"
+  shark::plugin_dir       = "C:\wireshark\dev\svn_sources_release-1.8--win32\wireshark-gtk2\plugins\1.8.3"
+  shark::datafile_dir     = "C:\wireshark\dev\svn_sources_release-1.8--win32\wireshark-gtk2"
+  shark::systemfile_dir   = "C:\wireshark\dev\svn_sources_release-1.8--win32\wireshark-gtk2"
+  shark::profiles_dir     = "C:\Users\Olivier\AppData\Roaming\Wireshark\profiles"
+  shark::persdatafile_dir = "C:\Users\Olivier\Documents"
+
+Variable/field name usage
+
+When you want to use a variable or field inside an expression or set command, you simply use its name.
+In a struct use dot notation.
+
+Built-in functions
+
+- string          to_string (<field_variable_value_expression>) ;
+- <int_or_float>  to_numeric (in string  str_containing_numeric_expression) ;
+  fatal if result is not numeric
+- <float>         to_float (in string/int  numeric_expression) ;
+  fatal if result is not numeric
+- <int>           to_integer (in string/float  numeric_expression, in int8  base = 0) ;
+  fatal if result is not numeric
+- string          getenv (in string  env_variable_name) ;
+
+- string          date.get_string_from_days    (in uint16{min=1583} ref_year, in uint32 number_of_days);
+- string          date.get_string_from_seconds (in uint16{min=1583} ref_year, in uint40 number_of_seconds);
+  so, if you have unix time (seconds since 1970/01/01) use : date.get_string_from_seconds(1970, unix_time);
+- uint            string.length (in string  str_source);
+- int64           string.find   (in string  str_source, in string  str_to_find);    # returns string::npos if not found
+- string          string.substr (in string  str_source, in uint  index, in int64  count = string::npos);
+- string          string.erase  (in string  str_source, in uint  index, in int64  count = string::npos);
+- string          string.insert (in string  str_source, in uint  index, in string str_to_insert);
+- string          string.replace(in string  str_source, in uint  index, in int64  count, in string  str_to_insert);
+- string          string.replace_all(in string  str_source, in string  str_old, in string  str_new);
+
+Decoder
+
+Sometimes, the input data is NOT directly usable (using int16, string ...) because it is encoded in a way that Generic dissector does NOT understand.
+It is necessary to decode the input data before use it.
+
+Built-in decoders :
+- decoder_aes  (ecb only)        key (16/24/32 bytes) must be specified by ascii string variable "decoder_aes_key", you must read the possible padding bytes
+- decoder_base64                     ignore space, tab, CR, LF
+- decoder_utf8
+- decoder_utf16be    (big endian)
+- decoder_utf16le    (little endian)

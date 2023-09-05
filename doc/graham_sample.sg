@@ -1,0 +1,54 @@
+// All datatypes are by default little endian.
+// default_endianness is a pre-defined variable.
+default_endianness = little_endian;
+
+///////////
+// Types //
+///////////
+type message uint8 (
+  connect         = 20   // type value
+  connect_ack            // value is 21
+  request_data    = 40
+  request_reply
+  disconnect      = 60
+  disconnect_ack
+)
+
+type reply_type uint8 (
+  read_short             // type value is 0
+  read_long
+  read_string
+)
+
+// These types don't have values. They are just type aliases.
+type data_short   uint16
+type data_long    uint32
+type reply_string [15]byte
+type id           uint32
+
+/////////////
+// Structs //
+/////////////
+struct graham_pdu (
+  message                                                      // name is optional
+  switch message (                                             // switch could be on the name to make it non-ambigious in some cases
+    case connect, connect_ack, disconnect, disconnect_ack:
+      id
+    case request_data:
+      reply_type
+    case request_reply:                                        // this is the message
+      request_reply                                            // this is the structure
+  )
+)
+
+struct request_reply (
+  reply_type
+  switch reply_type (
+    case read_short:
+      data_short
+    case read_long:
+      data_long
+    case read_string:
+      reply_string
+  )
+)

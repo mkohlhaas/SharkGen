@@ -1,0 +1,57 @@
+endian = big;
+
+enum funcs_enum:uint8 {
+    20 = CONNECT:        "connect",
+    21 = CONNECT_ACK:    "connect_ack",
+    40 = REQUEST_DATA:   "request_data",
+    41 = REQUEST_REPLY:  "request_reply",
+    60 = DISCONNECT:     "disconnect",
+    61 = DISCONNECT_ACK: "disconnect_ack",
+    default = "Reserved"
+};
+
+enum data_enum:uint8 {
+    0 = READ_SHORT:  "read short",
+    1 = READ_LONG:   "read long",
+    2 = READ_STRING: "read string",
+    default = "Reserved"
+};
+
+struct request_reply_data {
+    data_enum "Data id";
+    switch ("Data id") {
+    case READ_SHORT:
+       uint16_le  "Data Short";
+    case READ_LONG:
+       uint32_le  "Data Long";
+    case READ_STRING:
+       string  "Data String"[15];
+    default:
+       byte "Unknown request data"[../Length - 3];
+    };
+};
+
+struct grahams_proto_pdu {
+    funcs_enum Function;
+    uint16 Length;
+    switch (Function) {
+    case CONNECT:
+        uint32 id;
+    case CONNECT_ACK:
+        uint32 id;
+    case DISCONNECT:
+        uint32 id;
+    case DISCONNECT_ACK:
+        uint32 id;
+    case REQUEST_DATA:
+        data_enum "Data id";
+    case REQUEST_REPLY:
+        request_reply_data Data;
+    default:
+        byte "Unknown function data"[Length - 3];
+    };
+};
+
+protoDetails = { "Graham's Protocol", "grahams_proto", "grahamp" };
+dissectorEntry grahams_proto = grahams_proto_pdu;
+dissectorTable["ethertype", "0x893C"] = grahams_proto;
